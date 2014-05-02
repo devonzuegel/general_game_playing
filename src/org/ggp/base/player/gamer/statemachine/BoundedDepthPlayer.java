@@ -1,8 +1,9 @@
-package org.ggp.base.player.gamer.statemachine.sample;
+package org.ggp.base.player.gamer.statemachine;
 
 import java.util.List;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
+import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
@@ -18,7 +19,10 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  * public Move stateMachineSelectMove(long timeout)
  *
  */
-public final class OurAlphaBetaGamer extends SampleGamer {
+public final class BoundedDepthPlayer extends SampleGamer {
+
+	private static int limit = 2;
+
 	/**
 	 * This function is called at the start of each round
 	 * You are required to return the Move your player will play
@@ -33,7 +37,7 @@ public final class OurAlphaBetaGamer extends SampleGamer {
 		int score = 0;
 		for (int i = 0; i < moves.size(); i++) {
 			Move move = moves.get(i);
-			int result = minscore(move, getCurrentState(), 0, 100, timeout);
+			int result = minscore(move, getCurrentState(), 0, 100, timeout, 0);
 			if(result==-1) return bestmove;
 			if (result > score)		{
 				score = result;
@@ -49,8 +53,8 @@ public final class OurAlphaBetaGamer extends SampleGamer {
 		return bestmove;
 	}
 
-	private int minscore(Move move, MachineState state, int alpha, int beta, long timeout) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
-		if(System.currentTimeMillis()>timeout) {
+	private int minscore(Move move, MachineState state, int alpha, int beta, long timeout, int level) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+		if(System.currentTimeMillis()>(timeout-100)) {
 			return -1;
 		}
 
@@ -58,7 +62,7 @@ public final class OurAlphaBetaGamer extends SampleGamer {
 		for (int i = 0; i < opps_moves.size(); i++) {
 			MachineState newstate = getStateMachine().getNextState(state, opps_moves.get(i));
 
-			int result = maxscore(newstate, alpha, beta, timeout);
+			int result = maxscore(newstate, alpha, beta, timeout, level+1);
 			if(result==-1) return -1;
 			beta = min(beta, result);
 			if (beta <= alpha)	return alpha;
@@ -66,15 +70,16 @@ public final class OurAlphaBetaGamer extends SampleGamer {
 		return beta;
 	}
 
-	private int maxscore(MachineState state, int alpha, int beta, long timeout) throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
-		if(System.currentTimeMillis()>timeout) {
+	private int maxscore(MachineState state, int alpha, int beta, long timeout, int level) throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
+		if(System.currentTimeMillis()>(timeout-100)) {
 			return -1;
 		}
-
 		if (getStateMachine().isTerminal(state))		return getStateMachine().getGoal(state, getRole());
+		if(level>=limit) return 0;
+
 		List<Move> my_moves = getStateMachine().getLegalMoves(state, getRole());
 		for (int i = 0; i < my_moves.size(); i++) {
-			int result = minscore(my_moves.get(i), state, alpha, beta, timeout);
+			int result = minscore(my_moves.get(i), state, alpha, beta, timeout, level+1);
 			if(result==-1) return -1;
 			alpha = max(alpha, result);
 			if (alpha >= beta) 	return beta;

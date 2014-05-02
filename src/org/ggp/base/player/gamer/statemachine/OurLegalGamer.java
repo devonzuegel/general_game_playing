@@ -1,8 +1,9 @@
-package org.ggp.base.player.gamer.statemachine.sample;
+package org.ggp.base.player.gamer.statemachine;
 
 import java.util.List;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
+import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;

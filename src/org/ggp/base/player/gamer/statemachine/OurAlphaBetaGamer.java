@@ -1,8 +1,9 @@
-package org.ggp.base.player.gamer.statemachine.sample;
+package org.ggp.base.player.gamer.statemachine;
 
 import java.util.List;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
+import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
@@ -18,18 +19,7 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  * public Move stateMachineSelectMove(long timeout)
  *
  */
-public final class BoundedDepthHeuristicPlayer extends SampleGamer {
-
-	private int limit = 6; 		//make this dynamic
-	private int maxMoves = 0;
-//	private int bestHeuristic = 0;
-
-	@Override
-	public void stateMachineMetaGame(long startClock) {
-		// Implement Meta Gaming, set bestHeuristic to 0 for goal proximity,
-		// 1 for mobility, 2 for focus
-	}
-
+public final class OurAlphaBetaGamer extends SampleGamer {
 	/**
 	 * This function is called at the start of each round
 	 * You are required to return the Move your player will play
@@ -40,14 +30,11 @@ public final class BoundedDepthHeuristicPlayer extends SampleGamer {
 		long start = System.currentTimeMillis();
 
 		List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
-		if(moves.size()>maxMoves){
-			maxMoves = moves.size();
-		}
 		Move bestmove = moves.get(0);
 		int score = 0;
 		for (int i = 0; i < moves.size(); i++) {
 			Move move = moves.get(i);
-			int result = minscore(move, getCurrentState(), 0, 100, timeout, 0);
+			int result = minscore(move, getCurrentState(), 0, 100, timeout);
 			if(result==-1) return bestmove;
 			if (result > score)		{
 				score = result;
@@ -63,19 +50,16 @@ public final class BoundedDepthHeuristicPlayer extends SampleGamer {
 		return bestmove;
 	}
 
-	private int minscore(Move move, MachineState state, int alpha, int beta, long timeout, int level) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
-		if(System.currentTimeMillis()>(timeout-1000)) {
+	private int minscore(Move move, MachineState state, int alpha, int beta, long timeout) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+		if(System.currentTimeMillis()>timeout) {
 			return -1;
 		}
 
 		List<List<Move> > opps_moves = getStateMachine().getLegalJointMoves(state, getRole(), move);
-		if(opps_moves.size()>maxMoves){
-			maxMoves = opps_moves.size();
-		}
 		for (int i = 0; i < opps_moves.size(); i++) {
 			MachineState newstate = getStateMachine().getNextState(state, opps_moves.get(i));
 
-			int result = maxscore(newstate, alpha, beta, timeout, level+1);
+			int result = maxscore(newstate, alpha, beta, timeout);
 			if(result==-1) return -1;
 			beta = min(beta, result);
 			if (beta <= alpha)	return alpha;
@@ -83,44 +67,15 @@ public final class BoundedDepthHeuristicPlayer extends SampleGamer {
 		return beta;
 	}
 
-	int mobilityHeuristic(MachineState state) throws MoveDefinitionException{
-		List<Move> legalMoves = getStateMachine().getLegalMoves(state, getRole());
-		return 80*(legalMoves.size()/maxMoves);
-	}
-
-	int focusHeuristic(MachineState state) throws MoveDefinitionException{
-		List<Move> legalMoves = getStateMachine().getLegalMoves(state, getRole());
-		return 80*(1 - (legalMoves.size()/maxMoves));
-	}
-
-	int goalProximity(MachineState state) throws GoalDefinitionException {
-		return getStateMachine().getGoal(state, getRole());
-	}
-
-	int evaluateState(MachineState state) throws GoalDefinitionException{
-		return goalProximity(state);
-
-//		switch(bestHeuristic){
-//		case 0: return goalProximity(state);
-//		case 1: return mobilityHeuristic(state);
-//		default: return focusHeuristic(state);
-//		}
-
-	}
-
-	private int maxscore(MachineState state, int alpha, int beta, long timeout, int level) throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
-		if(System.currentTimeMillis()>(timeout-1000)) {
+	private int maxscore(MachineState state, int alpha, int beta, long timeout) throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
+		if(System.currentTimeMillis()>timeout) {
 			return -1;
 		}
-		if (getStateMachine().isTerminal(state))		return getStateMachine().getGoal(state, getRole());
-		if(level>=limit) return evaluateState(state);
 
+		if (getStateMachine().isTerminal(state))		return getStateMachine().getGoal(state, getRole());
 		List<Move> my_moves = getStateMachine().getLegalMoves(state, getRole());
-		if(my_moves.size()>maxMoves){
-			maxMoves = my_moves.size();
-		}
 		for (int i = 0; i < my_moves.size(); i++) {
-			int result = minscore(my_moves.get(i), state, alpha, beta, timeout, level+1);
+			int result = minscore(my_moves.get(i), state, alpha, beta, timeout);
 			if(result==-1) return -1;
 			alpha = max(alpha, result);
 			if (alpha >= beta) 	return beta;
