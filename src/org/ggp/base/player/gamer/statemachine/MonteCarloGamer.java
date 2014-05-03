@@ -12,29 +12,27 @@ import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 /**
- * MonteCarloGamer is a simple state-machine-based Gamer. It will use a
- * pure Monte Carlo approach towards picking moves, doing simulations and then
- * choosing the move that has the highest expected score. It should be slightly
- * more challenging than the RandomGamer, while still playing reasonably fast.
+ * MonteCarloGamer uses a pure Monte Carlo approach towards picking moves, doing
+ * simulations, & then choosing the move that has the highest expected score.
  *
- * However, right now it isn't challenging at all. It's extremely mediocre, and
- * doesn't even block obvious one-move wins. This is partially due to the speed
- * of the default state machine (which is slow) and mostly due to the algorithm
- * assuming that the opponent plays completely randomly, which is inaccurate.
- *
- * @author Sam Schreiber
+ * It is currently extremely mediocre... it doesn't even block one-move wins. This
+ * is mostly due to the assumption that the opponent plays randomly.
+ * @author1 Varun Datta
+ * @author2 Leonard Bronner
+ * @author3 Devon Zuegel
  */
 public final class MonteCarloGamer extends SampleGamer {
-	/** Employs a simple "Monte Carlo" algorithm. */
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-	    StateMachine theMachine = getStateMachine();
-		long start = System.currentTimeMillis();
+	    StateMachine machine = getStateMachine();
+		long start_time = System.currentTimeMillis();
 		long finishBy = timeout - 1000;
 
-		List<Move> moves = theMachine.getLegalMoves(getCurrentState(), getRole());
+		// TODO check to make sure we're not making immediately bad choices that lead us to lose the game
+
+		List<Move> moves = machine.getLegalMoves(getCurrentState(), getRole());
 		Move selection = moves.get(0);
-		if (moves.size() > 1) {
+		if (moves.size() > 1) { // checks that there's actually a choice to make
     		int[] moveTotalPoints = new int[moves.size()];
     		int[] moveTotalAttempts = new int[moves.size()];
 
@@ -67,11 +65,13 @@ public final class MonteCarloGamer extends SampleGamer {
 
 		long stop = System.currentTimeMillis();
 
-		notifyObservers(new GamerSelectedMoveEvent(moves, selection, stop - start));
+		notifyObservers(new GamerSelectedMoveEvent(moves, selection, stop - start_time));
 		return selection;
 	}
 
+
 	private int[] depth = new int[1];
+
 	int performDepthChargeFromMove(MachineState theState, Move myMove) {
 	    StateMachine theMachine = getStateMachine();
 	    try {
