@@ -44,7 +44,7 @@ public final class MonteCarloTreeSearchGamer extends SampleGamer {
 		return n;
 	}
 
-	private Node init_visited_node(MachineState state, StateMachine machine) throws MoveDefinitionException {
+	private Node expand_visited_node(MachineState state, StateMachine machine) throws MoveDefinitionException {
 		Node node = new Node();
 		node.visited = true;
 		node.n_children_visited = 0;
@@ -78,7 +78,7 @@ public final class MonteCarloTreeSearchGamer extends SampleGamer {
 	}
 
 	Move monte_carlo_tree_search(List<Move> moves, MachineState state, StateMachine machine, long finishBy) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
-		if (curr_state_node == null)  curr_state_node = init_visited_node(getCurrentState(), machine);
+		if (curr_state_node == null)  curr_state_node = expand_visited_node(getCurrentState(), machine);
 
 		double[] avg_scores = new double[moves.size()];
 
@@ -106,15 +106,25 @@ public final class MonteCarloTreeSearchGamer extends SampleGamer {
 		return best;
 	}
 
-	private double update_move_i_avg_score(Node node,  MachineState state,  StateMachine machine) throws GoalDefinitionException, MoveDefinitionException {
+	private double update_move_i_avg_score(Node node, MachineState state, StateMachine machine) throws GoalDefinitionException, MoveDefinitionException {
 		node.visited = true;
 		if (one_mv_oppnt_win(state, machine))	return 0.0;
 
-		if (node.possib_next_states == null) {
-		}
-		return 0.0;
+		if (node.possib_next_states == null)  expand_visited_node(state, machine);
+
+		// grab rand_mv from state, perform depth search on it
+		int depth_surge_score = depth_charge_score(state, machine.getRandomMove(state, getRole()));
+
+		// update node.avg_score to include the score calculated from the depth surge
+		node.avg_score = (node.avg_score*node.n_children_visited + depth_surge_score) / (node.n_children_visited + 1);
+		node.n_children_visited++;
+
+		return node.avg_score;
 	}
 
+	int depth_charge_score(MachineState state, Move mv) {
+		return performDepthChargeFromMove(state, mv);
+	}
 
 	// TODO  this function needs to be written to return true if the given move affords the opponent a one-move win
 	private boolean one_mv_oppnt_win(MachineState state, StateMachine machine) throws GoalDefinitionException {
