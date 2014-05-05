@@ -23,64 +23,62 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  * @author3 Devon Zuegel
  */
 public final class MonteCarloGamer extends SampleGamer {
+	// TODO check to make sure we're not making immediately bad choices that lead us to lose the game
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		// TODO check to make sure we're not making immediately bad choices that lead us to lose the game
-
-		StateMachine machine = getStateMachine();
+		StateMachine m = getStateMachine();
 		long start_time = System.currentTimeMillis();
 		long finishBy = timeout - 1000;
 
-		List<Move> moves = machine.getLegalMoves(getCurrentState(), getRole());
+		List<Move> moves = m.getLegalMoves(getCurrentState(), getRole());
 		Move selection = moves.get(0);
-		// checks that there's actually a choice to make
-		if (moves.size() > 1)	selection = monte_carlo(moves, machine, finishBy);
+		if (moves.size() > 1)	 selection = monte_carlo(moves, m, finishBy);	// ensures that there's actually a choice to make
 
 		long stop = System.currentTimeMillis();
 		notifyObservers(new GamerSelectedMoveEvent(moves, selection, stop - start_time));
 		return selection;
 	}
 
-	private Move monte_carlo(List<Move> moves, StateMachine machine, long finishBy) throws MoveDefinitionException, TransitionDefinitionException {
-		int[] moveTotalPoints = new int[moves.size()];
-		int[] moveTotalAttempts = new int[moves.size()];
+	private Move monte_carlo(List<Move> moves, StateMachine m, long finishBy) throws MoveDefinitionException, TransitionDefinitionException {
+		int[] total_pts = new int[moves.size()];
+		int[] num_visits = new int[moves.size()];
 
 		// Depth charges for each candidate move, and keep track
 		// of the total score and total attempts accumulated for each move.
 		for (int i = 0; true; i = (i+1) % moves.size()) {
 			if (System.currentTimeMillis() > finishBy)  	break;
 
-			int score = performDepthChargeFromMove(getCurrentState(), moves.get(i));
-			moveTotalPoints[i] += score;
-			moveTotalAttempts[i] += 1;
+			int score = depth_charge_score(getCurrentState(), moves.get(i));
+			num_visits[i]++;
+			total_pts[i] += score;
 		}
 
 		// Compute the expected score for each move.
-		double[] moveExpectedPoints = new double[moves.size()];
+		double[] moves_expected_pts = new double[moves.size()];
 		for (int i = 0; i < moves.size(); i++)
-			moveExpectedPoints[i] = (double)moveTotalPoints[i] / moveTotalAttempts[i];
+			moves_expected_pts[i] = (double)total_pts[i] / num_visits[i];
 
 		// Find move with the best expected score.
-		int bestMove = 0;
-		double bestMoveScore = moveExpectedPoints[0];
+		int best_mv_index = 0;
+		double best_mv_score = moves_expected_pts[0];
 		for (int i = 1; i < moves.size(); i++) {
-			if (moveExpectedPoints[i] > bestMoveScore) {
-				bestMoveScore = moveExpectedPoints[i];
-				bestMove = i;
+			if (moves_expected_pts[i] > best_mv_score) {
+				best_mv_score = moves_expected_pts[i];
+				best_mv_index = i;
 			}
 		}
-		return moves.get(bestMove);
+		return moves.get(best_mv_index);
 
 	}
 
 
 	private int[] depth = new int[1];
 
-	int performDepthChargeFromMove(MachineState theState, Move myMove) {
-	    StateMachine theMachine = getStateMachine();
+	int depth_charge_score(MachineState state, Move myMove) {
+	    StateMachine m = getStateMachine();
 	    try {
-            MachineState finalState = theMachine.performDepthCharge(theMachine.getRandomNextState(theState, getRole(), myMove), depth);
-            return theMachine.getGoal(finalState, getRole());
+            MachineState final_state = m.performDepthCharge(m.getRandomNextState(state, getRole(), myMove), depth);
+            return m.getGoal(final_state, getRole());
         } catch (Exception e) {
             e.printStackTrace();
             return 0;
