@@ -1,5 +1,6 @@
 package org.ggp.base.player.gamer.statemachine;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
@@ -11,6 +12,12 @@ import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
+class Node {
+	boolean visited = false;
+	double avg_score = 0;
+	ArrayList<Node> children;
+//	int i;
+}
 
 /**
  * MonteCarloGamer uses a pure Monte Carlo approach towards picking moves, doing
@@ -22,7 +29,11 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  * @author2 Leonard Bronner
  * @author3 Devon Zuegel
  */
-public final class MonteCarloGamer extends SampleGamer {
+public final class MonteCarloTreeSearchGamer extends SampleGamer {
+//	int node_i = 0;  // currently favoring one side (need to split up by time / monotonic heuristic later)
+//	ArrayList<Node> curr_lvl;
+//	Node<Node> curr_node;
+
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// TODO check to make sure we're not making immediately bad choices that lead us to lose the game
@@ -41,7 +52,15 @@ public final class MonteCarloGamer extends SampleGamer {
 		return selection;
 	}
 
-	private Move monte_carlo(List<Move> moves, StateMachine machine, long finishBy) throws MoveDefinitionException, TransitionDefinitionException {
+	Move monte_carlo(List<Move> moves, StateMachine machine, long finishBy) throws MoveDefinitionException, TransitionDefinitionException {
+//		double[] moves_avg_score = new double[moves.size()];
+//		int[] n_depth_charge_attempts = new int[moves.size()];
+//
+//		Map<Move, List<MachineState>> moves_to_states = machine.getNextStates(getCurrentState(), getRole());
+
+
+
+// -----------------------------------------------------------------------------------------------------------------------------
 		int[] moveTotalPoints = new int[moves.size()];
 		int[] moveTotalAttempts = new int[moves.size()];
 
