@@ -1,7 +1,8 @@
 package org.ggp.base.player.gamer.statemachine;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
 import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
@@ -15,7 +16,9 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 class Node {
 	boolean visited = false;
 	double avg_score = 0;
-	ArrayList<Node> children;
+	Map<Move, Node> possib_next_states;
+	int n_children_visited = 0;
+//	ArrayList<Node> children;
 //	int i;
 }
 
@@ -30,66 +33,92 @@ class Node {
  * @author3 Devon Zuegel
  */
 public final class MonteCarloTreeSearchGamer extends SampleGamer {
-//	int node_i = 0;  // currently favoring one side (need to split up by time / monotonic heuristic later)
-//	ArrayList<Node> curr_lvl;
-//	Node<Node> curr_node;
+	Node curr_state_node = null;
+
+	private Node init_new_node(boolean visited, double avg_score, Map<Move, Node> possib_next_states, int n_children_visited) {
+		Node n = new Node();
+		n.visited = visited;
+		n.avg_score = avg_score;
+		n.possib_next_states = possib_next_states;
+		n.n_children_visited = n_children_visited;
+		return n;
+	}
+
+	private Node init_visited_node(MachineState state, StateMachine machine) throws MoveDefinitionException {
+		Node node = new Node();
+		node.visited = true;
+		node.n_children_visited = 0;
+		node.avg_score = 0;
+
+		// initialize possib_next_states to contain moves pointing to "blank" nodes
+		List<Move> moves = machine.getLegalMoves(state, getRole());
+		Map<Move, Node> possib_next_states = new HashMap<Move, Node>();
+		for (int i = 0; i < moves.size(); i++) {
+			Node n = init_new_node(false, 0, null, 0);
+			possib_next_states.put(moves.get(i), n);
+		}
+		node.possib_next_states = possib_next_states;
+
+		return node;
+	}
 
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		// TODO check to make sure we're not making immediately bad choices that lead us to lose the game
-
 		StateMachine machine = getStateMachine();
 		long start_time = System.currentTimeMillis();
 		long finishBy = timeout - 1000;
 
 		List<Move> moves = machine.getLegalMoves(getCurrentState(), getRole());
 		Move selection = moves.get(0);
-		// checks that there's actually a choice to make
-		if (moves.size() > 1)	selection = monte_carlo(moves, machine, finishBy);
+		if (moves.size() > 1)	selection = monte_carlo_tree_search(moves, getCurrentState(), machine, finishBy);		// checks that there's actually a choice to make
 
 		long stop = System.currentTimeMillis();
 		notifyObservers(new GamerSelectedMoveEvent(moves, selection, stop - start_time));
 		return selection;
 	}
 
-	Move monte_carlo(List<Move> moves, StateMachine machine, long finishBy) throws MoveDefinitionException, TransitionDefinitionException {
-//		double[] moves_avg_score = new double[moves.size()];
-//		int[] n_depth_charge_attempts = new int[moves.size()];
-//
-//		Map<Move, List<MachineState>> moves_to_states = machine.getNextStates(getCurrentState(), getRole());
+	Move monte_carlo_tree_search(List<Move> moves, MachineState state, StateMachine machine, long finishBy) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+		if (curr_state_node == null)  curr_state_node = init_visited_node(getCurrentState(), machine);
 
+		double[] avg_scores = new double[moves.size()];
 
+		while (System.currentTimeMillis() > finishBy) {
+			for (int i = 0; i < moves.size(); i++) {
+				Move mv = moves.get(i); // gets the move at i
+				MachineState next_state = machine.getRandomNextState(state);
+				Node next_state_node = curr_state_node.possib_next_states.get(mv); // finds the next node in the tree
 
-// -----------------------------------------------------------------------------------------------------------------------------
-		int[] moveTotalPoints = new int[moves.size()];
-		int[] moveTotalAttempts = new int[moves.size()];
-
-		// Depth charges for each candidate move, and keep track
-		// of the total score and total attempts accumulated for each move.
-		for (int i = 0; true; i = (i+1) % moves.size()) {
-			if (System.currentTimeMillis() > finishBy)  	break;
-
-			int score = performDepthChargeFromMove(getCurrentState(), moves.get(i));
-			moveTotalPoints[i] += score;
-			moveTotalAttempts[i] += 1;
-		}
-
-		// Compute the expected score for each move.
-		double[] moveExpectedPoints = new double[moves.size()];
-		for (int i = 0; i < moves.size(); i++)
-			moveExpectedPoints[i] = (double)moveTotalPoints[i] / moveTotalAttempts[i];
-
-		// Find move with the best expected score.
-		int bestMove = 0;
-		double bestMoveScore = moveExpectedPoints[0];
-		for (int i = 1; i < moves.size(); i++) {
-			if (moveExpectedPoints[i] > bestMoveScore) {
-				bestMoveScore = moveExpectedPoints[i];
-				bestMove = i;
+				avg_scores[i] = update_move_i_avg_score(next_state_node,  next_state,  machine); // given that next node in the tree & the list of states
 			}
 		}
-		return moves.get(bestMove);
 
+		// update our position in the tree to reflect that we've made a move choice
+		int i = index_of_best_avg_score(avg_scores);
+		curr_state_node = curr_state_node.possib_next_states.get(moves.get(i));
+		return moves.get(i);
+	}
+
+	private int index_of_best_avg_score(double[] avg_scores) {
+		int best = 0;
+		for (int i = 0; i < avg_scores.length; i++) {
+			if (avg_scores[i] > avg_scores[best])	best = i;
+		}
+		return best;
+	}
+
+	private double update_move_i_avg_score(Node node,  MachineState state,  StateMachine machine) throws GoalDefinitionException, MoveDefinitionException {
+		node.visited = true;
+		if (one_mv_oppnt_win(state, machine))	return 0.0;
+
+		if (node.possib_next_states == null) {
+		}
+		return 0.0;
+	}
+
+
+	// TODO  this function needs to be written to return true if the given move affords the opponent a one-move win
+	private boolean one_mv_oppnt_win(MachineState state, StateMachine machine) throws GoalDefinitionException {
+		return false;
 	}
 
 
