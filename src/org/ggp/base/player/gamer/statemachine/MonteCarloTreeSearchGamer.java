@@ -35,6 +35,24 @@ class Node {
 public final class MonteCarloTreeSearchGamer extends SampleGamer {
 	Node curr_state_node = null;
 
+  /** MCTS notes **/
+	void MCTS() {
+		while (!timeout) {
+
+		}
+	}
+
+	void MCTS_iteration() {
+		State state - getCurrentState();
+		// selection
+		while (!expand(currState)) { // when n_visits >= n_children, do selection
+			state = selection(currState);
+		}
+		// expansion
+		state = pickUnexploredChild();
+	}
+
+
 	private Node init_new_node(boolean visited, double avg_score, Map<Move, Node> possib_next_states, int n_children_visited) {
 		Node n = new Node();
 		n.visited = visited;
