@@ -169,6 +169,32 @@ public abstract class StateMachine
     }
 
     /**
+     * Returns a list containing every joint move possible in the given state.
+     * A joint move consists of one move for each role, with the moves in the
+     * same ordering that their roles have in {@link #getRoles()}.
+     * <p>
+     * The list of possible joint moves is the Cartesian product of the lists
+     * of legal moves available for each player.
+     * <p>
+     * If only one player has more than one legal move, then the number of
+     * joint moves returned will equal the number of possible moves for that
+     * player.
+     */
+    public List<List<Move>> getLegalOpponentJointMoves(MachineState state, Role ourRole) throws MoveDefinitionException
+    {
+        List<List<Move>> legals = new ArrayList<List<Move>>();
+        for (Role role : getRoles()) {
+        	if (!role.equals(ourRole))   legals.add(getLegalMoves(state, role));
+        }
+
+
+        List<List<Move>> crossProduct = new ArrayList<List<Move>>();
+        crossProductLegalMoves(legals, crossProduct, new LinkedList<Move>());
+
+        return crossProduct;
+    }
+
+    /**
      * Returns a list of every joint move possible in the given state in which
      * the given role makes the given move. This will be a subset of the list
      * of joint moves given by {@link #getLegalJointMoves(MachineState)}.
