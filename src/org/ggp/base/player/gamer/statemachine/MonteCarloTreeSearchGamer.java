@@ -21,6 +21,8 @@ class MoveInfo {
 
 class Node {
 	int nvisits = 0;
+	double utility = 0;
+	MachineState state = null;
 	public Map<Move, MoveInfo> myMovesMap;  // need to be able to find our move with highest avg at the end of the stateMachineSelectMove method
 	Map<List<Move>, MoveInfo> oppMovesMap;  // allows us to choose best move for opponent (somewhat like minimax)
 	Map<List<Move>, MoveInfo> jointMovesMap;
@@ -52,6 +54,7 @@ public final class MonteCarloTreeSearchGamer extends SampleGamer {
 		long finishBy = timeout - 1000;
 
 		parent = new Node();
+		parent.state = getCurrentState();
 
 		List<Move> myMoves = m.getLegalMoves(getCurrentState(), getRole());
 		for (int i = 0; i < myMoves.size(); i++) {
@@ -66,12 +69,15 @@ public final class MonteCarloTreeSearchGamer extends SampleGamer {
 		List<List<Move>> jointMoves = m.getLegalJointMoves(getCurrentState());
 		for (int i = 0; i < jointMoves.size(); i++) {
 			parent.jointMovesMap.put(jointMoves.get(i), new MoveInfo());
-			parent.children.put(jointMoves.get(i), new Node());
+			Node child = new Node();
+			child.state = m.getNextState(parent.state, jointMoves.get(i));
+			parent.children.put(jointMoves.get(i), child);
+
 		}
 
 		// find a pair that hasn't been explored yet, or if none use selection equation
-		List<Move> selectedJointMove = selectJointMove(parent);
-
+		Node selectedNode = selectNode(parent);
+		expand(selectedNode);
 		// do depth charge, back propagate
 
 
@@ -84,30 +90,77 @@ public final class MonteCarloTreeSearchGamer extends SampleGamer {
 		return selectedMove;
 	}
 
-	List<Move> selectJointMove(Node root) {
-		double bestAvg = 0;
-		List<Move> bestJointMove = null;
-
-		// go thru nVisitsToJointMove map to find one that has 0 visits
-		Iterator<Entry<List<Move>, MoveInfo>> it = root.jointMovesMap.entrySet().iterator();
-		while (it.hasNext()) {
-			Map.Entry<List<Move>, MoveInfo> pair = (Map.Entry<List<Move>, MoveInfo>)it.next();
-			if (pair.getValue().numVisits == 0)    return pair.getKey();
-			if (selectnFn(pair.getKey(), root) > bestAvg  ||  bestJointMove == null) {
-				bestJointMove = pair.getKey();
-				bestAvg = selectnFn(pair.getKey(), root);
-			}
+	void expand(Node selectedNode) throws MoveDefinitionException, TransitionDefinitionException {
+		StateMachine m = getStateMachine();
+		List<Move> myMoves = m.getLegalMoves(selectedNode.state, getRole());
+		for (int i = 0; i < myMoves.size(); i++) {
+			selectedNode.myMovesMap.put(myMoves.get(i), new MoveInfo());
 		}
 
-		// if we don't find one with 0 visits, use the selection equation to find the best one to visit
-		return selectJointMove(root.children.get(bestJointMove));
+		List<List<Move>> opponentsMoves = m.getLegalOpponentJointMoves(selectedNode.state, getRole());
+		for (int i = 0; i < opponentsMoves.size(); i++) {
+			selectedNode.oppMovesMap.put(opponentsMoves.get(i), new MoveInfo());
+		}
+
+		List<List<Move>> jointMoves = m.getLegalJointMoves(getCurrentState());
+		for (int i = 0; i < jointMoves.size(); i++) {
+			selectedNode.jointMovesMap.put(jointMoves.get(i), new MoveInfo());
+			Node child = new Node();
+			child.state = m.getNextState(selectedNode.state, jointMoves.get(i));
+			selectedNode.children.put(jointMoves.get(i), child);
+		}
+
+
 	}
 
-	double selectnFn(List<Move> jointMove, Node root) {
-		double avg = root.jointMovesMap.get(jointMove).avgScore;  // TODO check this
-		int nvisits = root.jointMovesMap.get(jointMove).numVisits;
+//	List<Move> selectJointMove(Node root) {
+//		double bestAvg = 0;
+//		List<Move> bestJointMove = null;
+//
+//		// go thru nVisitsToJointMove map to find one that has 0 visits
+//		Iterator<Entry<List<Move>, MoveInfo>> it = root.jointMovesMap.entrySet().iterator();
+//		while (it.hasNext()) {
+//			Map.Entry<List<Move>, MoveInfo> pair = (Map.Entry<List<Move>, MoveInfo>)it.next();
+//			if (pair.getValue().numVisits == 0)    return pair.getKey();
+//			if (selectnFn(pair.getKey(), root) > bestAvg  ||  bestJointMove == null) {
+//				bestJointMove = pair.getKey();
+//				bestAvg = selectnFn(pair.getKey(), root);
+//			}
+//		}
+//
+//		// if we don't find one with 0 visits, use the selection equation to find the best one to visit
+//		return selectJointMove(root.children.get(bestJointMove));
+//	}
 
-		return avg + Math.sqrt(2*Math.log(root.nvisits)/nvisits);
+	Node selectNode(Node root) {
+		if(root.children.size() == 0) return root;
+
+		// go thru nVisitsToJointMove map to find one that has 0 visits
+		//Map<List<Move>, Node> children
+		Iterator<Entry<List<Move>, Node>> it = root.children.entrySet().iterator();
+		while (it.hasNext()) {
+			Map.Entry<List<Move>, Node> pair = (Map.Entry<List<Move>, Node>)it.next();
+			if (pair.getValue().nvisits == 0)    return pair.getValue();
+		}
+
+		Iterator<Entry<List<Move>, Node>> iter = root.children.entrySet().iterator();
+		double bestAvg = 0;
+		Node bestNode = null;
+		while (iter.hasNext()) {
+			Map.Entry<List<Move>, Node> pair = (Map.Entry<List<Move>, Node>)iter.next();
+			if (selectnFn(pair.getValue(), root) > bestAvg) {
+				bestNode = pair.getValue();
+				bestAvg = selectnFn(pair.getValue(), root);
+				}
+		}
+
+		return selectNode(bestNode);
+
+		// if we don't find one with 0 visits, use the selection equation to find the best one to visit
+	}
+
+	double selectnFn(Node node, Node root) {
+		return node.utility + Math.sqrt(2*Math.log(root.nvisits)/node.nvisits);
 	}
 
 	private int[] depth = new int[1];
