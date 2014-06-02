@@ -46,14 +46,22 @@ public class SamplePropNetStateMachine extends StateMachine {
         ordering = getOrdering();
     }
 
+    public boolean markBases(MachineState state) {
+    	Map<GdlSentence, Proposition> props = propNet.getBasePropositions();
+    	Set<GdlSentence> stateInformation = state.getContents();
+
+    	return false;
+    }
+
 	/**
 	 * Computes if the state is terminal. Should return the value
 	 * of the terminal proposition for the state.
 	 */
 	@Override
 	public boolean isTerminal(MachineState state) {
-		// TODO: Compute whether the MachineState is terminal.
-		return false;
+		//markbases?
+		Proposition terminal = propNet.getTerminalProposition();
+		return terminal.getValue();
 	}
 
 	/**
@@ -66,8 +74,25 @@ public class SamplePropNetStateMachine extends StateMachine {
 	@Override
 	public int getGoal(MachineState state, Role role)
 	throws GoalDefinitionException {
-		// TODO: Compute the goal for role in state.
-		return -1;
+		//markbases?
+		int counter = 0;
+		int temp = 0;
+		Set<Proposition> rewards = propNet.getGoalPropositions().get(role);
+		for (Proposition reward : rewards) {
+			if(reward.getValue()) {
+				counter++;
+				temp = getGoalValue(reward);
+			}
+		}
+		if(counter == 1) return temp;
+		throw new GoalDefinitionException(state, role);
+	}
+
+	public void clearPropnet() {
+		Set<Proposition> all = propNet.getPropositions();
+		for(Proposition prop : all) {
+			prop.setValue(false);
+		}
 	}
 
 	/**
@@ -77,8 +102,9 @@ public class SamplePropNetStateMachine extends StateMachine {
 	 */
 	@Override
 	public MachineState getInitialState() {
-		// TODO: Compute the initial state.
-		return null;
+		clearPropnet();
+		propNet.getInitProposition().setValue(true);
+		return getStateFromBase();
 	}
 
 	/**
@@ -87,8 +113,15 @@ public class SamplePropNetStateMachine extends StateMachine {
 	@Override
 	public List<Move> getLegalMoves(MachineState state, Role role)
 	throws MoveDefinitionException {
-		// TODO: Compute legal moves.
-		return null;
+		//markbases
+		Set<Proposition> legals = propNet.getLegalPropositions().get(role);
+		List<Move> moves = new ArrayList<Move>();
+		for(Proposition legalProp : legals) {
+			if(legalProp.getValue()) {
+				moves.add(getMoveFromProposition(legalProp));
+			}
+		}
+		return moves;
 	}
 
 	/**
@@ -97,8 +130,9 @@ public class SamplePropNetStateMachine extends StateMachine {
 	@Override
 	public MachineState getNextState(MachineState state, List<Move> moves)
 	throws TransitionDefinitionException {
-		// TODO: Compute the next state.
-		return null;
+		//markbases
+		//mark actions(set of moves)
+		return getStateFromBase();
 	}
 
 	/**
