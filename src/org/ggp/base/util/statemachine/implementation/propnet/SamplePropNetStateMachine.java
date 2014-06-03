@@ -13,6 +13,9 @@ import org.ggp.base.util.gdl.grammar.GdlRelation;
 import org.ggp.base.util.gdl.grammar.GdlSentence;
 import org.ggp.base.util.propnet.architecture.Component;
 import org.ggp.base.util.propnet.architecture.PropNet;
+import org.ggp.base.util.propnet.architecture.components.And;
+import org.ggp.base.util.propnet.architecture.components.Not;
+import org.ggp.base.util.propnet.architecture.components.Or;
 import org.ggp.base.util.propnet.architecture.components.Proposition;
 import org.ggp.base.util.propnet.factory.PropNetFactory;
 import org.ggp.base.util.statemachine.MachineState;
@@ -44,6 +47,54 @@ public class SamplePropNetStateMachine extends StateMachine {
         propNet = PropNetFactory.create(description);
         roles = propNet.getRoles();
         ordering = getOrdering();
+    }
+
+    /*
+     * function markbases (vector,propnet)
+ 		{var props = propnet.bases;
+  		for (var i=0; i<props.length; i++) {props[i].mark = vector[i]};
+  		return true}
+  		 */
+
+    public boolean markBases(MachineState state) {
+    	return true;
+    }
+ /*
+		function markactions (vector,propnet)
+ 			{var props = propnet.actions;
+  			for (var i=0; i<props.length; i++) {props[i].mark = vector[i]};
+  			return true}
+     */
+
+
+    public boolean propMarkNegation(Component p) {
+    	return !propMarkP(p.getSingleInput());
+    }
+
+    public boolean propMarkConjunction(Component p) {
+    	Set<Component> inputs = p.getInputs();
+    	for(Component c : inputs) {
+    		if(!propMarkP(c)) return false;
+    	}
+    	return true;
+    }
+
+    public boolean propMarkDisjunction(Component p) {
+    	Set<Component> inputs = p.getInputs();
+    	for(Component c : inputs) {
+    		if(propMarkP(c)) return true;
+    	}
+    	return false;
+    }
+
+    public boolean propMarkP(Component p) {
+    	if(propNet.getBasePropositions().containsValue(p)) return p.getValue();
+    	if(propNet.getInputPropositions().containsValue(p)) return p.getValue();
+    	if(propNet.getPropositions().contains(p)) //view
+    	if(p instanceof Not) return propMarkNegation(p);
+    	if(p instanceof And) return propMarkConjunction(p);
+    	if(p instanceof Or) return propMarkDisjunction(p);
+    	return false;
     }
 
     public boolean markBases(MachineState state) {
